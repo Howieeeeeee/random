@@ -1,4 +1,5 @@
 #include "random.h"
+#include <pthread.h>
 
 using namespace randomA;
 
@@ -58,12 +59,50 @@ double Customer::GetDuration()
 {
 	return m_duration;
 }
+void Customer::SetIsDead(bool Dead)
+{
+	isDead = Dead;
+}
+bool Customer::GetIsDead()
+{
+	return isDead;
+}
+
+void* scan(void* args)
+{
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::milli> tm = end - RandomGenerator::m_starttime;
+	if (!Coordiante::m_set.empty())
+	{
+		double duration = tm.count();
+		auto it_index = Coordiante::m_set.lower_bound(duration);
+		for (auto it = Coordiante::m_set.begin(); it != it_index; it++)
+		{
+			auto deadline = *it_index;
+			for (int i = 0;i < RandomGenerator::m_samplelist.size();i++)
+			{
+				if (RandomGenerator::m_samplelist[i]->GetDuration() < deadline)
+				{
+					RandomGenerator::m_samplelist[i]->SetIsDead(true);
+				}
+			}
+		}
+	}
+}  
 
 void RandomGenerator::Create()
 {
-
 	for (int i = 0; i < MAX_NUM; ++i)
 	{
+		if (i == 0)
+		{
+			int ret = pthread_create(&m_threadid, NULL, scan, NULL);
+			m_starttime = std::chrono::high_resolution_clock::now();
+			if (ret)
+			{
+				return;
+			}
+		}
 		m_samplelist[i] = new Customer(1, 2, 2, 2);
 	}
 }

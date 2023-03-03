@@ -6,6 +6,7 @@
 #include <utility>
 #include <set>
 #include <vector>
+#include <chrono>
 
 #define MAX_NUM 100000
 
@@ -49,10 +50,13 @@ public:
 	Customer(int index, double h, double v, double r);
 public:
 	double GetDuration();
+	void SetIsDead(bool isdead);
+	bool GetIsDead();
 private:
 	double m_duration;
 	double startTime;
 	double endTime;
+	bool isDead;
 };
 class Rider : public Coordiante
 {
@@ -65,8 +69,11 @@ public:
 	RandomGenerator() = default;
 public:
 	void Create();
+public:
+	static std::chrono::high_resolution_clock::time_point m_starttime;
+	static std::vector<Customer*> m_samplelist;
 private:
-	std::vector<Coordiante*> m_samplelist;
+	pthread_t m_threadid;
 
 };
 
