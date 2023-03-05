@@ -6,9 +6,9 @@
 #include <utility>
 #include <set>
 #include <vector>
-#include <chrono>
+//#include <chrono>
 
-#define MAX_NUM 100000
+#define MAX_RESTAURANT_NUM 1000
 
 typedef std::pair<double, double> Make_Pair;
 
@@ -22,11 +22,12 @@ public:
 	Coordiante() = delete;
 	Coordiante(int index, double h, double v, double r);
 public:
-	Make_Pair RandomGenerate();
 	double GetXLocation();
 	double GetYLocation();
+	double GetRadius();
+	double GetX();
+	double GetY();
 	int GetIndex();
-	void AddDuration(double duration);
 private:
 	Make_Pair m_coordiate;
 	double m_horizon;
@@ -36,47 +37,46 @@ private:
 	double radius;
 	int m_index;
 };
- 
-class Restaurant : public Coordiante
-{
-public:
-private:
-	double m_readytime;
-	
-};
+
+class Restaurant;
 class Customer : public Coordiante
 {
 public:
-	Customer(int index, double h, double v, double r);
+	Customer(Restaurant* pRestaurant, int index, double h, double v, double r);
 public:
 	double GetDuration();
-	void SetIsDead(bool isdead);
-	bool GetIsDead();
+	void SetTime(double readytime);
 private:
 	double m_duration;
-	double startTime;
-	double endTime;
-	bool isDead;
+	Restaurant* m_pRestaurant;
 };
-class Rider : public Coordiante
+class Restaurant : public Coordiante
 {
+public:
+	Restaurant(int index, double h, double v, double r);
+public:
+	void CreateCustomer();
+	void CreateCustomerOtherZone(int index, double h, double v, double r);
+	Customer* GetCustomer();
+	double GetReadyTime();
+private:
+	double ReadyTimeMinimum;
+	double ReadyTimeMaximum;
+	double m_readytime;
+	Customer* m_pCustomer;
 
 };
-
 class RandomGenerator
 {
 public:
 	RandomGenerator() = default;
+	~RandomGenerator();
 public:
-	void Create();
-public:
-	static std::chrono::high_resolution_clock::time_point m_starttime;
-	static std::vector<Customer*> m_samplelist;
+	void Create(int num, int index, double h, double v, double r);
+	Restaurant* GetRestaurantList(int index);
 private:
-	pthread_t m_threadid;
-
+	Restaurant* m_pRestaurantList[MAX_RESTAURANT_NUM];
 };
-
 }
 
 #endif

@@ -1,5 +1,5 @@
 #include "random.h"
-#include <pthread.h>
+#include <math.h>
 
 using namespace randomA;
 
@@ -8,20 +8,44 @@ Coordiante::Coordiante(int index, double h, double v, double r)
 	, centre_h(h)
 	, centre_v(v)
 	, radius(r)
+	, m_coordiate(0,0)
 {
 	m_horizon = centre_h;
 	m_vertical = centre_v;
-}
 
-Coordiante::~Coordiante()
-{
+	//double x = (2 * (double)rand() / RAND_MAX - 1.0) * radius;
+	//double y = (2 * (double)rand() / RAND_MAX - 1.0) * radius;
+	//if (x * x + y * y <= radius * radius)
+	//{
+	//	m_horizon = x + centre_h;
+	//	m_vertical = y + centre_v;
+	//	m_coordiate =  Make_Pair(m_horizon, m_vertical);
+	//}
+
+	double angle = (double)rand() / RAND_MAX * 360;
+	double rad = (double)rand() / RAND_MAX * radius;
+	m_horizon = rad * sin(angle) + centre_h;
+	m_vertical = rad * cos(angle) + centre_v;
+	m_coordiate = Make_Pair(m_horizon, m_vertical);
 }
 
 double Coordiante::GetXLocation()
 {
-	return m_horizon;
+	return centre_h;
 }
 double Coordiante::GetYLocation()
+{
+	return centre_v;
+}
+double Coordiante::GetRadius()
+{
+	return radius;
+}
+double Coordiante::GetX()
+{
+	return m_horizon;
+}
+double Coordiante::GetY()
 {
 	return m_vertical;
 }
@@ -29,80 +53,72 @@ int Coordiante::GetIndex()
 {
 	return m_index;
 }
-Make_Pair Coordiante::RandomGenerate()
-{
-	double x = (2 * (double)rand() / RAND_MAX - 1.0) * radius;
-	double y = (2 * (double)rand() / RAND_MAX - 1.0) * radius;
-	if ( x * x + y * y <= radius * radius)
-	{
-		m_horizon = x + centre_h;
-		m_vertical = y + centre_v;
-		Make_Pair coordianate(m_horizon, m_vertical);
-		return coordianate;
-	}
-	return;
-}
-void Coordiante::AddDuration(double duration)
-{
-	m_set.insert(duration);
-}
 
-Customer::Customer(int index, double h, double v, double r)
+Customer::Customer(Restaurant* pRestaurant, int index, double h, double v, double r)
 	: Coordiante(index, h, v, r)
+	, m_pRestaurant(pRestaurant)
 {
-	m_duration = startTime; 
-	m_duration += 1.0 * rand() / RAND_MAX * (endTime - startTime);
-	AddDuration(m_duration);
+	double distance = pow(pow(fabs(pRestaurant->GetX() - this->GetX()), 2) + pow(fabs(pRestaurant->GetY() - this->GetY()), 2), 0.5);
+	m_duration = distance * 1.0 * rand() / RAND_MAX * 1.5;
 }
-
 double Customer::GetDuration()
 {
 	return m_duration;
-}
-void Customer::SetIsDead(bool Dead)
+} 
+void Customer::SetTime(double readytime)
 {
-	isDead = Dead;
+	m_duration += readytime;
 }
-bool Customer::GetIsDead()
+Restaurant::Restaurant(int index, double h, double v, double r)
+	: Coordiante(index, h, v, r)
+	, ReadyTimeMinimum(10)
+	, ReadyTimeMaximum(100)
+	, m_pCustomer(nullptr)
 {
-	return isDead;
+	m_readytime = ReadyTimeMinimum;
+	m_readytime += 1.0 * rand() / RAND_MAX * (ReadyTimeMaximum - ReadyTimeMinimum);
 }
-
-void* scan(void* args)
+void Restaurant::CreateCustomer()
 {
-	auto end = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double, std::milli> tm = end - RandomGenerator::m_starttime;
-	if (!Coordiante::m_set.empty())
+	m_pCustomer = new Customer(this, this->GetIndex(),this->GetXLocation(),
+		this->GetYLocation(), this->GetRadius());
+	m_pCustomer->SetTime(m_readytime);
+}
+void Restaurant::CreateCustomerOtherZone(int index, double h, double v, double r)
+{
+	m_pCustomer = new Customer(this, index, h, v, r);
+	m_pCustomer->SetTime(m_readytime);
+}
+double Restaurant::GetReadyTime()
+{
+	return m_readytime;
+}
+Customer* Restaurant::GetCustomer()
+{
+	return m_pCustomer;
+}
+RandomGenerator::~RandomGenerator()
+{
+	for (auto it : m_pRestaurantList)
 	{
-		double duration = tm.count();
-		auto it_index = Coordiante::m_set.lower_bound(duration);
-		for (auto it = Coordiante::m_set.begin(); it != it_index; it++)
+		if (it)
 		{
-			auto deadline = *it_index;
-			for (int i = 0;i < RandomGenerator::m_samplelist.size();i++)
-			{
-				if (RandomGenerator::m_samplelist[i]->GetDuration() < deadline)
-				{
-					RandomGenerator::m_samplelist[i]->SetIsDead(true);
-				}
-			}
+			delete it;
+			it = nullptr;
 		}
 	}
-}  
-
-void RandomGenerator::Create()
+}
+void RandomGenerator::Create(int num, int index, double h, double v, double r)
 {
-	for (int i = 0; i < MAX_NUM; ++i)
+	if (num <= MAX_RESTAURANT_NUM)
 	{
-		if (i == 0)
+		for (int i = 0; i < num; ++i)
 		{
-			int ret = pthread_create(&m_threadid, NULL, scan, NULL);
-			m_starttime = std::chrono::high_resolution_clock::now();
-			if (ret)
-			{
-				return;
-			}
+			m_pRestaurantList[i] = new Restaurant(index, h, v, r);
 		}
-		m_samplelist[i] = new Customer(1, 2, 2, 2);
 	}
+}
+Restaurant* RandomGenerator::GetRestaurantList(int index)
+{
+	return m_pRestaurantList[index];
 }
